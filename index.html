@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ForexAnalyst - ტექნიკური ანალიზის პლატფორმა</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-adapter-moment/1.0.1/chartjs-adapter-moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2a2e39;
+            --secondary-color: #1e222d;
+            --text-color: #d1d4dc;
+            --accent-color: #2962ff;
+            --success-color: #26a69a;
+            --danger-color: #ef5350;
+            --panel-bg: #131722;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: var(--secondary-color);
+            color: var(--text-color);
+        }
+        
+        .container {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            grid-template-rows: 60px 1fr;
+            height: 100vh;
+        }
+        
+        header {
+            grid-column: 1 / 3;
+            background-color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            border-bottom: 1px solid #3a3e4a;
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--accent-color);
+        }
+        
+        .currency-info {
+            margin-left: 30px;
+            display: flex;
+            gap: 20px;
+        }
+        
+        .currency-pair {
+            font-weight: bold;
+        }
+        
+        .price {
+            color: var(--success-color);
+        }
+        
+        .nav-tabs {
+            margin-left: auto;
+            display: flex;
+        }
+        
+        .nav-tabs button {
+            background: transparent;
+            border: none;
+            color: var(--text-color);
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .nav-tabs button.active {
+            border-bottom: 2px solid var(--accent-color);
+            color: white;
+        }
+        
+        .sidebar {
+            background-color: var(--primary-color);
+            padding: 20px;
+            border-right: 1px solid #3a3e4a;
+            overflow-y: auto;
+        }
+        
+        .sidebar h3 {
+            margin-bottom: 15px;
+            font-size: 16px;
+            color: #8b8f9c;
+        }
+        
+        .currency-list {
+            list-style: none;
+        }
+        
+        .currency-list li {
+            padding: 10px;
+            margin-bottom: 5px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            border-radius: 4px;
+        }
+        
+        .currency-list li:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+        
+        .currency-list li.active {
+            background-color: rgba(41, 98, 255, 0.1);
+            color: var(--accent-color);
+        }
+        
+        .currency-list .pct-change.positive {
+            color: var(--success-color);
+        }
+        
+        .currency-list .pct-change.negative {
+            color: var(--danger-color);
+        }
+        
+        main {
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .chart-container {
+            background-color: var(--panel-bg);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            height: 500px;
+        }
+        
+        .analysis-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .panel {
+            background-color: var(--panel-bg);
+            border-radius: 8px;
+            padding: 20px;
+        }
+        
+        .panel h3 {
+            margin-bottom: 15px;
+            font-size: 16px;
+            color: #8b8f9c;
+        }
+        
+        .prediction-panel {
+            text-align: center;
+            padding: 30px;
+        }
+        
+        .prediction-title {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+        
+        .prediction-value {
+            font-size: 42px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        
+        .prediction-details {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+        }
+        
+        .prediction-detail {
+            text-align: center;
+        }
+        
+        .prediction-label {
+            font-size: 14px;
+            color: #8b8f9c;
+            margin-bottom: 5px;
+        }
+        
+        .prediction-chance {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .prediction-chance.up {
+            color: var(--success-color);
+        }
+        
+        .prediction-chance.down {
+            color: var(--danger-color);
+        }
+        
+        .time-frames {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .time-frames button {
+            background-color: transparent;
+            border: 1px solid #3a3e4a;
+            border-radius: 4px;
+            color: var(--text-color);
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        
+        .time-frames button.active {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+        
+        .indicators {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        
+        .indicator {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        
+        .status-dot.positive {
+            background-color: var(--success-color);
+        }
+        
+        .status-dot.negative {
+            background-color: var(--danger-color);
+        }
+        
+        .status-dot.neutral {
+            background-color: #ffc107;
+        }
+        
+        .strategy-list {
+            list-style: none;
+        }
+        
+        .strategy-item {
+            padding: 10px 0;
+            border-bottom: 1px solid #2a2e39;
+        }
+        
+        .strategy-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .strategy-signal {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .signal-strength {
+            height: 4px;
+            flex: 1;
+            background-color: #2a2e39;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .signal-value {
+            height: 100%;
+            border-radius: 2px;
+        }
+        
+        .signal-value.buy {
+            background-color: var(--success-color);
+        }
+        
+        .signal-value.sell {
+            background-color: var(--danger-color);
+        }
+        
+        .technical-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .tech-item {
+            background-color: rgba(255, 255, 255, 0.03);
+            padding: 10px;
+            border-radius: 4px;
+        }
+        
+        .tech-label {
+            font-size: 12px;
+            color: #8b8f9c;
+        }
+        
+        .tech-value {
+            font-size: 16px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">ForexAnalyst</div>
+            <div class="currency-info">
+                <span class="currency-pair">EUR/USD</span>
+                <span class="price">1.1842</span>
+                <span class="change positive">+0.0012 (+0.10%)</span>
+            </div>
+            <div class="nav-tabs">
+                <button class="active">ჩარტი</button>
+                <button>ტექნიკური ანალიზი</button>
+                <button>სტრატეგიები</button>
+                <button>პროგნოზები</button>
+            </div>
+        </header>
+        
+        <aside class="sidebar">
+            <h3>ფორექსის ვალუტები</h3>
+            <ul class="currency-list" id="currencyList">
+                <li class="active">
+                    <span>EUR/USD</span>
+                    <span class="pct-change positive">+0.10%</span>
+                </li>
+                <li>
+                    <span>GBP/USD</span>
+                    <span class="pct-change negative">-0.05%</span>
+                </li>
+                <li>
+                    <span>USD/JPY</span>
+                    <span class="pct-change positive">+0.22%</span>
+                </li>
+                <li>
+                    <span>USD/CHF</span>
+                    <span class="pct-change negative">-0.14%</span>
+                </li>
+                <li>
+                    <span>AUD/USD</span>
+                    <span class="pct-change positive">+0.31%</span>
+                </li>
+                <li>
+                    <span>USD/CAD</span>
+                    <span class="pct-change negative">-0.08%</span>
+                </li>
+                <li>
+                    <span>NZD/USD</span>
+                    <span class="pct-change positive">+0.17%</span>
+                </li>
+                <li>
+                    <span>EUR/GBP</span>
+                    <span class="pct-change positive">+0.03%</span>
+                </li>
+                <li>
+                    <span>EUR/JPY</span>
+                    <span class="pct-change positive">+0.32%</span>
+                </li>
+                <li>
+                    <span>GBP/JPY</span>
+                    <span class="pct-change positive">+0.29%</span>
+                </li>
+            </ul>
+        </aside>
+        
+        <main>
+            <div class="time-frames">
+                <button class="active">1საათი</button>
+                <button>4საათი</button>
+                <button>1დღე</button>
+                <button>1კვირა</button>
+                <button>1თვე</button>
+            </div>
+            
+            <div class="chart-container">
+                <canvas id="priceChart"></canvas>
+            </div>
+            
+            <div class="analysis-container">
+                <div class="panel">
+                    <h3>ტექნიკური ანალიზი</h3>
+                    <div class="indicators">
+                        <div class="indicator">
+                            <div class="status-dot positive"></div>
+                            <span>RSI: 62</span>
+                        </div>
+                        <div class="indicator">
+                            <div class="status-dot neutral"></div>
+                            <span>MACD: შემცირება</span>
+                        </div>
+                        <div class="indicator">
+                            <div class="status-dot positive"></div>
+                            <span>MA: აღმავალი</span>
+                        </div>
+                    </div>
+                    
+                    <div class="technical-details">
+                        <div class="tech-item">
+                            <div class="tech-label">მხარდაჭერა 1</div>
+                            <div class="tech-value">1.1792</div>
+                        </div>
+                        <div class="tech-item">
+                            <div class="tech-label">მხარდაჭერა 2</div>
+                            <div class="tech-value">1.1760</div>
+                        </div>
+                        <div class="tech-item">
+                            <div class="tech-label">წინააღმდეგობა 1</div>
+                            <div class="tech-value">1.1865</div>
+                        </div>
+                        <div class="tech-item">
+                            <div class="tech-label">წინააღმდეგობა 2</div>
+                            <div class="tech-value">1.1890</div>
+                        </div>
+                        <div class="tech-item">
+                            <div class="tech-label">პივოტი</div>
+                            <div class="tech-value">1.1825</div>
+                        </div>
+                        <div class="tech-item">
+                            <div class="tech-label">Bollinger Bands</div>
+                            <div class="tech-value">მაღლა</div>
+                        </div>
+                        <div class="tech-item">
+                            <div class="tech-label">Stochastic</div>
+                            <div class="tech-value">გადაყიდული</div>
+                        </div>
+                        <div class="tech-item">
+                            <div class="tech-label">ATR</div>
+                            <div class="tech-value">0.0042</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="panel">
+                    <h3>ტრეიდერების სტრატეგიები</h3>
+                    <ul class="strategy-list">
+                        <li class="strategy-item">
+                            <div class="strategy-name">გვიანი დღის მოძრაობა</div>
+                            <div class="strategy-signal">
+                                <span>ყიდვა</span>
+                                <div class="signal-strength">
+                                    <div class="signal-value buy" style="width: 75%"></div>
+                                </div>
+                                <span>75%</span>
+                            </div>
+                        </li>
+                        <li class="strategy-item">
+                            <div class="strategy-name">წინააღმდეგობის გარღვევა</div>
+                            <div class="strategy-signal">
+                                <span>ყიდვა</span>
+                                <div class="signal-strength">
+                                    <div class="signal-value buy" style="width: 60%"></div>
+                                </div>
+                                <span>60%</span>
+                            </div>
+                        </li>
+                        <li class="strategy-item">
+                            <div class="strategy-name">მოძრავი საშუალო კვეთა</div>
+                            <div class="strategy-signal">
+                                <span>გაყიდვა</span>
+                                <div class="signal-strength">
+                                    <div class="signal-value sell" style="width: 55%"></div>
+                                </div>
+                                <span>55%</span>
+                            </div>
+                        </li>
+                        <li class="strategy-item">
+                            <div class="strategy-name">ტრენდის მიყოლა</div>
+                            <div class="strategy-signal">
+                                <span>ყიდვა</span>
+                                <div class="signal-strength">
+                                    <div class="signal-value buy" style="width: 82%"></div>
+                                </div>
+                                <span>82%</span>
+                            </div>
+                        </li>
+                        <li class="strategy-item">
+                            <div class="strategy-name">ფიბონაჩის უკან დაბრუნება</div>
+                            <div class="strategy-signal">
+                                <span>ნეიტრალური</span>
+                                <div class="signal-strength">
+                                    <div class="signal-value buy" style="width: 48%"></div>
+                                </div>
+                                <span>48%</span>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="panel prediction-panel">
+                <div class="prediction-title">EUR/USD პროგნოზი</div>
+                <div class="prediction-value">1.1865</div>
+                <div class="prediction-details">
+                    <div class="prediction-detail">
+                        <div class="prediction-label">აღმავალი ტრენდის შანსი</div>
+                        <div class="prediction-chance up">67%</div>
+                    </div>
+                    <div class="prediction-detail">
+                        <div class="prediction-label">დაღმავალი ტრენდის შანსი</div>
+                        <div class="prediction-chance down">33%</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // მონაცემების სიმულაცია ჩარტისთვის
+        function generateChartData() {
+            const data = [];
+            let price = 1.1820;
+            const now = moment();
+            
+            for (let i = 100; i > 0; i--) {
+                const time = moment(now).subtract(i * 15, 'minutes');
+                
+                // რეალისტური ფასის ცვლილებები
+                const change = (Math.random() - 0.48) * 0.0010;
+                price += change;
+                
+                data.push({
+                    time: time,
+                    price: price
+                });
+            }
+            
+            return data;
+        }
+        
+        // ჩარტის ინიციალიზაცია
+        const chartData = generateChartData();
+        const ctx = document.getElementById('priceChart').getContext('2d');
+        const priceChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: 'EUR/USD',
+                    data: chartData.map(item => ({
+                        x: item.time,
+                        y: item.price
+                    })),
+                    borderColor: '#2962ff',
+                    backgroundColor: 'rgba(41, 98, 255, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    pointHoverRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(30, 34, 45, 0.9)',
+                        bodyFont: {
+                            family: "'Segoe UI', sans-serif"
+                        },
+                        callbacks: {
+                            label: function(context) {
+                                return `ფასი: ${context.parsed.y.toFixed(4)}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'hour',
+                            displayFormats: {
+                                hour: 'HH:mm'
+                            }
+                        },
+                        grid: {
+                            display: true,
+                            color: 'rgba(255, 255, 255, 0.05)'
+                        },
+                        ticks: {
+                            color: '#8b8f9c'
+                        }
+                    },
+                    y: {
+                        grid: {
+                            display: true,
+                            color: 'rgba(255, 255, 255, 0.05)'
+                        },
+                        ticks: {
+                            color: '#8b8f9c',
+                            callback: function(value) {
+                                return value.toFixed(4);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // ვალუტის გადართვა სიდებარში
+        document.getElementById('currencyList').addEventListener('click', function(e) {
+            const item = e.target.closest('li');
+            if (!item) return;
+            
+            // აქტიური კლასის გადართვა
+            document.querySelectorAll('#currencyList li').forEach(li => {
+                li.classList.remove('active');
+            });
+            item.classList.add('active');
+            
+            // აქ შეგიძლიათ დაამატოთ კოდი ვალუტის მონაცემების განახლებისთვის
+            const currencyPair = item.querySelector('span').textContent;
+            document.querySelector('.currency-pair').textContent = currencyPair;
+            
+            // სიმულირებული ახალი მონაცემები ახალი ვალუტისთვის
+            const newChartData = generateChartData();
+            priceChart.data.datasets[0].data = newChartData.map(item => ({
+                x: item.time,
+                y: item.price
+            }));
+            priceChart.update();
+            
+            // პროგნოზის განახლება
+            updatePrediction(currencyPair);
+        });
+        
+        // პროგნოზის განახლების ფუნქცია
+        function updatePrediction(currencyPair) {
+            // რეალურ აპლიკაციაში ეს მოითხოვს მონაცემებს სერვერიდან
+            // აქ მხოლოდ სიმულაციაა
+            
+            const upChance = Math.floor(Math.random() * 40) + 30; // 30-70%
+            const downChance = 100 - upChance;
+            
+            const pair = currencyPair.split('/');
+            let basePrice = 0;
+            
+            // სიმულირებული ფასები სხვადასხვა წყვილებისთვის
+            switch(currencyPair) {
+                case 'EUR/USD':
+                    basePrice = 1.1842;
+                    break;
+                case 'GBP/USD':
+                    basePrice = 1.3217;
+                    break;
+                case 'USD/JPY':
+                    basePrice = 107.21;
+                    break;
+                case 'USD/CHF':
+                    basePrice = 0.9174;
+                    break;
+                case 'AUD/USD':
+                    basePrice = 0.7325;
+                    break;
+                default:
+                    basePrice = 1.0000 + Math.random() * 0.5;
+            }
+            
+            // პროგნოზირებული ფასის გამოთვლა
+            const direction = upChance > downChance ? 1 : -1;
+            const changePercent = Math.random() * 0.5; // 0-0.5% ცვლილება
+            const predictedPrice = basePrice * (1 + direction * changePercent / 100);
+            
+            // UI განახლება
+            document.querySelector('.prediction-value').textContent = predictedPrice.toFixed(4);
+            document.querySelector('.prediction-title').textContent = `${currencyPair} პროგნოზი`;
+            document.querySelector('.prediction-chance.up').textContent = `${upChance}%`;
+            document.querySelector('.prediction-chance.down').textContent = `${downChance}%`;
+
+            // ჰედერის ინფორმაციის განახლება
+            document.querySelector('.currency-pair').textContent = currencyPair;
+            document.querySelector('.price').textContent = basePrice.toFixed(4);
+            
+            // ცვლილება
+            const change = direction * Math.random() * 0.0020;
+            const changePercent2 = direction * Math.random() * 0.20;
+            const changeText = `${change > 0 ? '+' : ''}${change.toFixed(4)} (${change > 0 ? '+' : ''}${changePercent2.toFixed(2)}%)`;
+            const changeEl = document.querySelector('.change');
+            changeEl.textContent = changeText;
+            changeEl.className = `change ${change >= 0 ? 'positive' : 'negative'}`;
+        }
+        
+        // დროის პანელების გადართვა
+        document.querySelector('.time-frames').addEventListener('click', function(e) {
+            if (e.target.tagName !== 'BUTTON') return;
+            
+            document.querySelectorAll('.time-frames button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            e.target.classList.add('active');
+            
+            // ჩარტის დროის მასშტაბის შეცვლა
+            let timeScale;
+            switch(e.target.textContent) {
+                case '1საათი':
+                    timeScale = 'minute';
+                    break;
+                case '4საათი':
+                    timeScale = 'hour';
+                    break;
+                case '1დღე':
+                    timeScale = 'hour';
+                    break;
+                case '1კვირა':
+                    timeScale = 'day';
+                    break;
+                case '1თვე':
+                    timeScale = 'day';
+                    break;
+            }
+            
+            priceChart.options.scales.x.time.unit = timeScale;
+            priceChart.update();
+        });
+        
+        // ინიციალიზაციის დროს პირველი პროგნოზის გამოყვანა
+        updatePrediction('EUR/USD');
+    </script>
+</body>
+</html>
